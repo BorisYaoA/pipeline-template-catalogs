@@ -1,0 +1,32 @@
+version: 1
+type: pipeline-template
+
+name:   vote Pipeline Template
+description: vote Pipeline Template
+parameters:
+  - name: githubUrl
+    type: string
+    displayName: githubUrl
+  - name: commit_id
+    type: string
+    displayName: commit_id
+  - name: buildConfName
+    type: string
+    displayName: target_build name
+  - name: build_status
+    type: string
+    displayName: target_build build status
+  - name: scope
+    type: string
+    displayName: scope of the target_build
+  - name: event_type
+    type: string
+    displayName: event type
+  - name: dryRun
+    type: string
+    displayName: dryRun
+    defaultValue: "true"
+  - name: target_url
+    type: string
+    displayName: target_url
+    defaultValue: ""

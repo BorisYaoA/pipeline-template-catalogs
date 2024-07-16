@@ -1,0 +1,131 @@
+@Library("FCDS-infra") _
+
+pipeline {
+    agent {
+        kubernetes {
+            cloud "FCDS Linux Kubernetes"
+            slaveConnectTimeout 300
+            yaml  """
+            apiVersion: "v1"
+            kind: "Pod"
+            spec:
+              tolerations:
+                - effect: NoSchedule
+                  key: custom/build-hosts
+                  operator: Exists
+              containers:
+              - name: linuxagent
+                image: "amr-registry.caas.intel.com/fia-cloud/cbjagent-ubuntu18/common:ubuntu18-20240509224541"
+                imagePullPolicy: "IfNotPresent"
+                command:
+                - "sh"
+                - "-c"
+                args:
+                - "/home/jenkins/credential_prepare.sh && sleep 9999999"
+                resources:
+                  limits:
+                    memory: "4Gi"
+                    ephemeral-storage: "200Gi"
+                    cpu: "1"
+                  requests:
+                    cpu: "1"
+                    memory: "4Gi"
+                env:
+                - name: MY_POD_NAME
+                  valueFrom:
+                    fieldRef:
+                        fieldPath: metadata.name
+                - name: MY_HOST_NAME
+                  valueFrom:
+                    fieldRef:
+                        fieldPath: spec.nodeName
+                securityContext:
+                    privileged: false
+                    runAsGroup: 1000
+                    runAsUser: 1000
+                tty: false
+                volumeMounts:
+                - mountPath: "/home/temp"
+                  name: "volume-0"
+                  readOnly: false
+                - mountPath: "/home/jenkins/gitcache"
+                  name: "volume-1"
+                  readOnly: false
+                - mountPath: "/home/jenkins/agent-script"
+                  name: "volume-2"
+                  readOnly: false
+                - mountPath: "/home/jenkins/agent"
+                  name: "workspace-volume"
+                  readOnly: false
+                workingDir: "/home/jenkins/agent"
+              enableServiceLinks: false
+              hostNetwork: false
+              nodeSelector:
+                custom/buildhost: "linux"
+              restartPolicy: "Never"
+              volumes:
+              - configMap:
+                  name: "linuxsshconfig"
+                  optional: false
+                name: "volume-0"
+              - emptyDir:
+                  medium: ""
+                name: "volume-1"
+              - configMap:
+                  name: "jenkins-agent"
+                  optional: false
+                name: "volume-2"
+              - emptyDir:
+                  medium: ""
+                name: "workspace-volume"
+            """
+        }
+    }
+    environment{
+        REST_CREDS=credentials("sys_cr")
+        checkoutdir = "${env.WORKSPACE}"
+        PYTHONPATH="iafw-cr-tools"
+        CI_SYSTEM="jenkins"
+        SPLUNK_CREDS=credentials("splunk")
+        http_proxy="http://proxy-dmz.intel.com:912"
+        https_proxy="http://proxy-dmz.intel.com:912"
+        NO_PROXY="localhost,intel.com,127.0.0.1"
+        MQ_USER=credentials("MQ_SYS_ONEDB_OSS")
+        CI_VERSION="0.0.28"
+    }
+    parameters{
+        string(name: "githubUrl", defaultValue: "")
+        string(name: "commit_id", defaultValue: "")
+        string(name: "buildConfName", defaultValue: "")
+        string(name: "build_status", defaultValue: "")
+        string(name: "scope", defaultValue: "")
+        string(name: "event_type", defaultValue: "")
+        string(name: "target_url", defaultValue: "")
+        string(name: "timeout", defaultValue: "30")
+        string(name: "dryRun", defaultValue: "true")
+        string(name: "control_json", defaultValue: null)
+    }
+    stages {
+        stage('vote') {
+            steps {
+                container('linuxagent'){
+                    script  {
+                        pipelineCommon.vote_pipeline_steps()
+                    }
+                }
+            }
+        }
+    }
+    post {
+        always {
+            script{
+                dir("${env.WORKSPACE}") {
+                    deleteDir()
+                }
+                dir("${env.WORKSPACE_TMP}") {
+                    deleteDir()
+                }
+            }
+        }
+    }
+}

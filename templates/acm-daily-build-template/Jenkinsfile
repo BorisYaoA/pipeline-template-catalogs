@@ -1,0 +1,284 @@
+@Library('FCDS-infra') _
+
+pipeline {
+    // Run on controller
+    agent none
+    environment {
+        ACM_signing = credentials("ACM_signing")
+        ARTIFACT_CREDS = credentials("sys_artsbios")
+        bdba_sacn = credentials("bdba_scan")
+        CI_ENV="True"
+        CI_SYSTEM = "jenkins"
+        CI_VERSION="0.0.25"
+        cov_scan = credentials("cov_scan")
+        FDWS = credentials("FDWS")
+        NUMBER_OF_PROCESSORS="8"
+        PROTEX_CREDS=credentials("protex_account")
+        rabbitmq = credentials("rabbitmq")
+        REST_CREDS=credentials("sys_cr")
+        RST_COMM_PROTEX=credentials("sys_rst_comm")
+        SPLUNK_CREDS=credentials("splunk")
+        target_build="${env.JOB_BASE_NAME}"
+        vcsless = "True"
+    }
+    parameters{
+        string(name: "AGENT_TYPE", defaultValue: "static")
+        string(name: "AGENT_OS", defaultValue: null)
+        string(name: "combo_properties", defaultValue: null)
+        string(name: "KUBERNETES_CLOUD", defaultValue: "FCDS Windows Kubernetes")
+        // Default is set to windows
+        string(name: "KUBERNETES_IMAGE_NAME", defaultValue: "amr-registry.caas.intel.com/fia-cloud/jenkins-build-agent/oakstream:win2022-akshay-2-8-edkrepo")
+        // Linus Image: amr-registry.caas.intel.com/fia-cloud/cbj-agent-ubuntu16/l3-common:20230927
+        string(name: "KUBERNETES_SLAVE_CONNECT_TIMEOUT", defaultValue: "300")
+        string(name: "container_memory", defaultValue: "32Gi")
+        string(name: "container_ephemeral_storage", defaultValue: "200Gi")
+        string(name: "container_cpu", defaultValue: "8")
+        string(name: "mirrorURL_github", defaultValue: "xs-tcbuild17.jf.intel.com")
+        string(name: "remoteSshUser", defaultValue: "sys_cr")
+        string(name: "jsonPinFileList", defaultValue: null)
+        string(name: "CheckoutCrManifest", defaultValue: "iafw-cr-manifest")
+        string(name: "agent_work_dir", defaultValue: null)
+        string(name: "build_retention_days", defaultValue: "60")
+        string(name: "timeout_unit", defaultValue: "MINUTES")
+        string(name: "clean_workspace", defaultValue: "true")
+        string(name: "build_type", defaultValue: "Review")
+        string(name: "commit_id", defaultValue: "''")
+        string(name: "github_base_sha", defaultValue: "None")
+        string(name: "review_branch", defaultValue: "''")
+        string(name: "pipeline_timeout_duration", defaultValue: "240")
+        string(name: "githubUrl", defaultValue: "")
+        string(name: "buildConfName", defaultValue: "")
+        string(name: "build_status", defaultValue: "")
+        string(name: "scope", defaultValue: "")
+        string(name: "event_type", defaultValue: "")
+        string(name: "target_url", defaultValue: "")
+        string(name: "parentBuildUrl", defaultValue: "")
+        string(name: "githubRepo", defaultValue: "")
+        string(name: "targetType", defaultValue: "")
+        string(name: "dryRun", defaultValue: "true")
+        string(name: "control_json", defaultValue: null)
+        string(name: "original_build", defaultValue: null)
+        string(name: "codename", defaultValue: env.project)
+        string(name: "first_run", defaultValue: null)
+        string(name: "platform_pinfile", defaultValue: "${env.platform_pinfile}")
+    }
+    triggers {
+        cron("${env.cron_string}")
+    }
+    options {
+        buildDiscarder(logRotator(
+                                daysToKeepStr: build_retention_days,
+                                artifactDaysToKeepStr: build_retention_days
+                                )
+                      )
+        timeout(time: pipeline_timeout_duration, unit: timeout_unit)
+    }
+    stages{
+        // Run only if static agent is selected
+        stage("Static Agent build") {
+            when {
+                beforeAgent true
+                expression {
+                    return pipelineCommon.run_on_static_agent() }
+            }
+            agent {
+                // static agent will use agent_os as label because it's only on Windows os
+                // doesn't need extra label to distinguish Windows or Linux.
+                label params.AGENT_OS
+            }
+            environment {
+                checkoutdir = "${env.WORKSPACE}"
+                PYTHONPATH="${env.WORKSPACE}/iafw-cr-tools"
+                CI_SYSTEM="jenkins"
+            }
+            steps {
+                script {
+                    pipelineCommon.target_build_steps()
+                }
+            }
+        }
+        // Run only if dynamic windows agent is selected
+        stage("windows dynamic agent") {
+              when {
+                  beforeAgent true
+                  expression {
+                      return pipelineCommon.run_on_dynamic_windows_agent()
+                  }
+              }
+              agent {
+                  kubernetes {
+                      cloud "FCDS Windows Kubernetes"
+                      slaveConnectTimeout 300
+                      customWorkspace 'c:/s'
+                      yaml    """
+                        apiVersion: v1
+                        kind: Pod
+                        spec:
+                          tolerations:
+                          - effect: NoSchedule
+                            key: custom/build-hosts
+                            operator: Exists
+                          containers:
+                          - name: jnlp
+                            image: ${params.KUBERNETES_IMAGE_NAME}
+                            command:
+                            - powershell
+                            args:
+                            - cp -R C:\\privconf\\*  C:\\Users\\ContainerAdministrator;
+                            - C:\\jenkinsscript\\jenkins.ps1
+                            resources:
+                              limits:
+                                cpu: ${container_cpu}
+                                memory: ${container_memory}
+                              requests:
+                                cpu: ${container_cpu}
+                                memory: ${container_memory}
+                            env:
+                            - name: MY_POD_NAME
+                              valueFrom:
+                                fieldRef:
+                                  fieldPath: metadata.name
+                            - name: MY_HOST_NAME
+                              valueFrom:
+                                fieldRef:
+                                  fieldPath: spec.nodeName
+                            volumeMounts:
+                            - mountPath: /privconf
+                              name: credential-volume
+                            - mountPath: /gitcache
+                              name: cache-volume
+                            - mountPath: /jenkinsscript
+                              name: jenkins-script
+                          volumes:
+                          - hostPath:
+                              path: D:/agentconf
+                              type: ""
+                            name: credential-volume
+                          - hostPath:
+                              path: D:/agentcache
+                              type: ""
+                            name: cache-volume
+                          - configMap:
+                              defaultMode: 420
+                              name: jenkins-script
+                            name: jenkins-script
+                          nodeSelector:
+                            custom/os: 2022
+                """
+                }
+              }
+            environment {
+                checkoutdir = "${env.WORKSPACE}"
+                PYTHONPATH="iafw-cr-tools"
+                CI_SYSTEM="jenkins"
+            }
+            steps {
+                script {
+                    println "using k8s"
+                    println "Running on host ${env.MY_HOST_NAME}"
+                    bat "git config --list"
+                    bat "set"
+                    pipelineCommon.target_build_steps()
+                }
+            }
+        }
+        // Run only if dynamic linux agent is selected
+        stage("linux dynamic agent") {
+            when {
+                beforeAgent true
+                expression {
+                    return pipelineCommon.run_on_dynamic_linux_agent() }
+            }
+            agent {
+                kubernetes {
+                  cloud "FCDS Linux Kubernetes"
+                  slaveConnectTimeout 300
+                  yaml  """
+                    apiVersion: "v1"
+                    kind: "Pod"
+                    spec:
+                      tolerations:
+                        - effect: NoSchedule
+                          key: custom/build-hosts
+                          operator: Exists
+                      containers:
+                      - name: jnlp
+                        image: ${params.KUBERNETES_IMAGE_NAME}
+                        imagePullPolicy: "IfNotPresent"
+                        command:
+                        - "sh"
+                        args:
+                        - "-c"
+                        - "/home/jenkins/credential_prepare.sh && sh /home/jenkins/agent-script/jenkins-agent && sleep 9999999"
+                        resources:
+                          limits:
+                            memory: ${container_memory}
+                            ephemeral-storage: ${container_ephemeral_storage}
+                            cpu: ${container_cpu}
+                          requests:
+                            cpu: ${container_cpu}
+                            memory: ${container_memory}
+                        env:
+                        - name: MY_POD_NAME
+                          valueFrom:
+                            fieldRef:
+                              fieldPath: metadata.name
+                        - name: MY_HOST_NAME
+                          valueFrom:
+                            fieldRef:
+                              fieldPath: spec.nodeName
+                        securityContext:
+                          privileged: false
+                          runAsGroup: 1000
+                          runAsUser: 1000
+                        tty: false
+                        volumeMounts:
+                        - mountPath: "/home/temp"
+                          name: "volume-0"
+                          readOnly: false
+                        - mountPath: "/home/jenkins/gitcache"
+                          name: "volume-1"
+                          readOnly: false
+                        - mountPath: "/home/jenkins/agent-script"
+                          name: "volume-2"
+                          readOnly: false
+                        - mountPath: "/home/jenkins/agent"
+                          name: "workspace-volume"
+                          readOnly: false
+                        workingDir: "/home/jenkins/agent"
+                      enableServiceLinks: false
+                      hostNetwork: false
+                      nodeSelector:
+                        custom/buildhost: "linux"
+                      restartPolicy: "Never"
+                      volumes:
+                      - configMap:
+                          name: "linuxsshconfig"
+                          optional: false
+                        name: "volume-0"
+                      - emptyDir:
+                          medium: ""
+                        name: "volume-1"
+                      - configMap:
+                          name: "jenkins-agent"
+                          optional: false
+                        name: "volume-2"
+                      - emptyDir:
+                          medium: ""
+                        name: "workspace-volume"
+                    """
+                }
+            }
+            environment {
+                checkoutdir = "${env.WORKSPACE}"
+                PYTHONPATH="iafw-cr-tools"
+                CI_SYSTEM="jenkins"
+            }
+            steps {
+                script {
+                    pipelineCommon.target_build_steps()
+                }
+            }
+        }
+    }
+}

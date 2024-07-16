@@ -1,0 +1,153 @@
+version: 1
+type: pipeline-template
+
+name: ACM Daily Build Pipeline Template
+description: ACM Daily Build Pipeline Template for all Target Builds
+parameters:
+  - name: AGENT_TYPE
+    type: string
+    displayName: Agent Type
+    defaultValue: "static"
+  - name: AGENT_OS
+    type: string
+    displayName: Agent Operating System
+    defaultValue: null
+  - name: combo_properties
+    type: string
+    displayName: combo properties
+    defaultValue: null
+  - name: KUBERNETES_CLOUD
+    type: string
+    displayName: Kunernetes Cloud Name
+    defaultValue: null
+  - name: KUBERNETES_IMAGE_NAME
+    type: string
+    displayName: Kunernetes Agent Image URL
+    defaultValue: null
+  - name: container_cpu
+    type: string
+    displayName: container_cpu
+    defaultValue: "8"
+  - name: container_ephemeral_storage
+    type: string
+    displayName: container_ephemeral_storage
+    defaultValue: "200Gi"
+  - name: container_memory
+    type: string
+    displayName: container_memory
+    defaultValue: "16Gi"
+  - name: KUBERNETES_SLAVE_CONNECT_TIMEOUT
+    type: string
+    displayName: Kunernetes Agent Connection Timeout
+    defaultValue: null
+  - name: mirrorURL_github
+    type: string
+    displayName: Mirror URL
+    defaultValue: "xs-tcbuild17.jf.intel.com"
+  - name: remoteSshUser
+    type: string
+    displayName: Remote SSH User
+    defaultValue: "sys_cr"
+  - name: jsonPinFileList
+    type: string
+    displayName: Pin File List
+    defaultValue: ""
+  - name: CheckoutCrManifest
+    type: string
+    displayName: CR Manifest Checkout Dir
+    defaultValue: "iafw-cr-manifest"
+  - name: agent_work_dir
+    type: string
+    displayName: Agent Work Dir
+    defaultValue: null
+  - name: timeout_unit
+    type: string
+    displayName: Timeout Unit
+    defaultValue: "MINUTES"
+  - name: build_type
+    type: string
+    displayName: Build_Type
+    defaultValue: "Review"
+  - name: commit_id
+    type: string
+    displayName: Commit ID
+    defaultValue: "''"
+  - name: github_base_sha
+    type: string
+    displayName: GitHub Base SHA
+    defaultValue: "None"
+  - name: review_branch
+    type: string
+    displayName: Review Branch
+    defaultValue: "''"
+  - name: pipeline_timeout_duration
+    type: string
+    displayName: Pipeline Timeout Duration
+    defaultValue: "240"
+  - name: buildtype
+    type: string
+    displayName: Build Type
+    defaultValue: "Review"
+  - name: review_preflight
+    type: string
+    displayName: Review Preflight
+    defaultValue: "Review"
+  - name: artifactory_path
+    type: string
+    displayName: Artifactory Path
+    defaultValue: "''"
+  - name: dev_email
+    type: string
+    displayName: Developer Email
+    defaultValue: "default@intel.com"
+  - name: clean_workspace
+    type: string
+    displayName: clean_workspace
+    defaultValue: "true"
+  - name: kw_project
+    type: string
+    displayName: KlockWork Projet
+    defaultValue: "None"
+  - name: kw_pre
+    type: string
+    displayName: KlockWork Preflight
+    defaultValue: "False"
+  - name: kw_daily
+    type: string
+    displayName: KlockWork Daily
+    defaultValue: "False"
+  - name: tc_project
+    type: string
+    displayName: TC Project
+    defaultValue: "Server10nm"
+  - name: PYTHON_HOME
+    type: string
+    displayName: PYTHON_HOME
+    defaultValue: "C:/python27"
+  - name: githubUrl
+    type: string
+    displayName: githubUrl
+  - name: build_status
+    type: string
+    displayName: target_build build status
+  - name: scope
+    type: string
+    displayName: scope of the target_build
+  - name: event_type
+    type: string
+    displayName: event type
+  - name: dryRun
+    type: string
+    displayName: dryRun
+    defaultValue: "true"
+  - name: target_url
+    type: string
+    displayName: target_url
+    defaultValue: ""
+  - name: build_retention_days
+    type: string
+    displayName: Build Retention Days
+  - name: platform_pinfile
+    type: string
+    displayName: platform_pinfile
+    defaultValue: ""

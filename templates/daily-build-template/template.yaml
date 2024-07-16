@@ -1,0 +1,38 @@
+version: 1
+type: pipeline-template
+
+name: Daily Build Pipeline Template
+description: Daily Build Pipeline Template for all Target Builds
+parameters:
+  - name: AGENT_TYPE
+    type: string
+    displayName: AGENT_TYPE
+    defaultValue: "static"
+  - name: AGENT_OS
+    type: string
+    displayName: AGENT_OS
+    defaultValue: "cr-windows"
+  - name: dryrun
+    type: string
+    displayName: dryrun
+    defaultValue: ""
+  - name: platform_pinfile
+    type: string
+    displayName: platform_pinfile
+    defaultValue: ""
+  - name: build_retention_days
+    type: string
+    displayName: Build Retention Days
+    defaultValue: "60"
+  - name: pipeline_timeout_duration
+    type: string
+    displayName: Pipeline Timeout Duration
+    defaultValue: "240"
+  - name: timeout_unit
+    type: string
+    displayName: Timeout Unit
+    defaultValue: "MINUTES"
+  - name: artifactory_path
+    type: string
+    displayName: Artifactory Path
+    defaultValue: "''"

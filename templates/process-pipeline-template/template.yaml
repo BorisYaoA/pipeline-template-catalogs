@@ -1,0 +1,10 @@
+version: 1
+type: pipeline-template
+
+name: Process Pipeline Template
+description: Process Pipeline Template
+parameters:
+  - name: control_json
+    type: string
+    displayName: control json
+    defaultValue: ""

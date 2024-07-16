@@ -1,0 +1,84 @@
+@Library('FCDS-infra') _
+
+pipeline {
+    // Run on controller
+    agent none
+    environment {
+        REST_CREDS=credentials("sys_cr")
+        ARTIFACT_CREDS = credentials("sys_artsbios")
+        GIT_REVIEWER_1=credentials("github_reviewer_1")
+        GIT_REVIEWER_2=credentials("github_reviewer_2")
+        FDWS = credentials("FDWS")
+        cov_scan = credentials("cov_scan")
+        CI_ENV="True"
+        NUMBER_OF_PROCESSORS="8"
+        CI_SYSTEM = "jenkins"
+        vcsless = "True"
+        SPLUNK_CREDS=credentials("splunk")
+        PYTHONPATH="iafw-cr-tools"
+        CI_VERSION="0.0.28"
+    }
+    parameters{
+        // Agent configuration parameters
+        string(name: "AGENT_TYPE", defaultValue: "static")  // Type of agent to be used
+        string(name: "AGENT_OS", defaultValue: "cr-windows")  // Operating System of the agent
+        string(name: "AGENT_LABEL", defaultValue: null)  // Label associated with the agent
+
+        // Kubernetes specific parameters
+        string(name: "KUBERNETES_CLOUD", defaultValue: null)  // Kubernetes cloud to use
+        string(name: "KUBERNETES_IMAGE_NAME", defaultValue: null)  // Docker image for Kubernetes pod
+        string(name: "KUBERNETES_SLAVE_CONNECT_TIMEOUT", defaultValue: "300")  // Timeout for Kubernetes slave connection
+        string(name: "container_memory", defaultValue: "16Gi")
+        string(name: "container_ephemeral_storage", defaultValue: "200Gi")
+        string(name: "container_cpu", defaultValue: "8")
+
+        // Source control and build parameters
+        string(name: "mirrorURL_github", defaultValue: "xs-tcbuild17.jf.intel.com")  // Mirror URL for Github
+        string(name: "remoteSshUser", defaultValue: "sys_cr")  // Remote SSH user
+        string(name: "jsonPinFileList", defaultValue: null)  // List of JSON pin files
+        string(name: "CheckoutCrManifest", defaultValue: "iafw-cr-manifest")  // Manifest file for checkout
+        string(name: "build_retention_days", defaultValue: "60")  // Number of days to retain the build
+        string(name: "timeout_unit", defaultValue: "MINUTES")  // Unit of the timeout duration
+        string(name: "build_type", defaultValue: "Daily")  // Type of build (e.g. Review, Release)
+        string(name: "pipeline_timeout_duration", defaultValue: "240")  // Overall pipeline timeout duration
+        string(name: "fileList", defaultValue: ".") //default all files
+        string(name: "dryrun", defaultValue: "") //--dryrun for a dryrun
+        string(name: "platform_pinfile", defaultValue: "${env.platform_pinfile}")
+    }
+    triggers {
+        cron("${env.cron_string}")
+    }
+    options {
+        buildDiscarder(logRotator(
+                                daysToKeepStr: build_retention_days,
+                                artifactDaysToKeepStr: build_retention_days
+                                )
+                      )
+        timeout(time: pipeline_timeout_duration, unit: timeout_unit)
+    }
+    stages{
+      // Run only if static agent is selected
+        stage("Static Agent build") {
+            when {
+                beforeAgent true
+                expression {
+                    return pipelineCommon.run_on_static_agent() }
+            }
+            agent {
+                // static agent will use agent_os as label because it's only on Windows os
+                // doesn't need extra label to distinguish Windows or Linux.
+                label params.AGENT_OS
+            }
+            environment {
+                checkoutdir = "${env.WORKSPACE}"
+                PYTHONPATH="${env.WORKSPACE}/iafw-cr-tools"
+                CI_SYSTEM="jenkins"
+            }
+            steps {
+                script {
+                    pipelineCommon.daily_build_steps()
+                }
+            }
+        }
+    }
+}
