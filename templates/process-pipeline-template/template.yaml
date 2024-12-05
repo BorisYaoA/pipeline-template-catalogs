@@ -11,3 +11,5 @@ multibranch:
     git:
       remote: ${repoUrl}
   markerFile: build.gradle
+  buildStrategies:
+  - skipInitialBuildOnFirstIndexingResetRevision: {}
