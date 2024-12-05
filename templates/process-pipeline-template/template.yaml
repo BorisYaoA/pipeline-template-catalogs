@@ -1,10 +1,13 @@
-version: 1
 type: pipeline-template
-
-name: Process Pipeline Template
-description: Process Pipeline Template
+version: 1
+name: A Multibranch Template
+templateType: MULTIBRANCH
 parameters:
-  - name: control_json
+  - name: repoUrl
     type: string
-    displayName: control json
-    defaultValue: ""
+    displayName: Repo
+multibranch:
+  branchSource:
+    git:
+      remote: ${repoUrl}
+  markerFile: build.gradle
