@@ -10,6 +10,5 @@ multibranch:
   branchSource:
     git:
       remote: ${repoUrl}
-  markerFile: build.gradle
-buildStrategies:
+    buildStrategies:
       - $class: SkipInitialBuildOnFirstBranchIndexing
