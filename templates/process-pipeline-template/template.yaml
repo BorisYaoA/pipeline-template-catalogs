@@ -6,8 +6,12 @@ parameters:
   - name: repoUrl
     type: string
     displayName: Repo
+  - name: pipelineConfig
+    displayName: Pipeline Configuration File (YAML) - Example - ci-config.yaml OR config/ci-config.yaml
+    type: string
+    defaultValue: ci-config.yaml
 multibranch:
   branchSource:
     git:
       remote: ${repoUrl}
-  markerFile: pom.xml
+  markerFile: ${pipelineConfig}
