@@ -9,7 +9,7 @@ parameters:
   - name: pipelineConfig
     displayName: Pipeline Configuration File (YAML) - Example - ci-config.yaml OR config/ci-config.yaml
     type: string
-    defaultValue: ci-config.yaml
+    defaultValue: pom.xml
 multibranch:
   branchSource:
     git:
